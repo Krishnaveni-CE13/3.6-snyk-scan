@@ -2,6 +2,7 @@ name: CI Checks
 run-name: Running Terraform Checks by ${{ github.actor }}
 
 on:
+ workflow_dispatch:
  pull_request:
    branches:
      - main
