@@ -1,32 +1,83 @@
-providers {
-  aws = {
-    source  = "hashicorp/aws"
-    version = "~> 5.0"
+terraform {
+  required_version = ">= 1.10.0"
+
+  required_providers {
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.7"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+
+  backend "s3" {
+    encrypt      = true
+    use_lockfile = true
   }
 }
-resource "aws_lambda_function" "helloworld" {
-  function_name = "helloworld"
-  role          = aws_iam_role.lambda_exec.arn
-  handler       = "helloworld.display"
-  runtime       = "python3.9"
 
-  filename      = "lambda.zip"
-
-  source_code_hash = filebase64sha256("lambda.zip")
+variable "aws_region" {
+  description = "AWS region for the Lambda function"
+  type        = string
+  default     = "us-east-1"
 }
-resource "aws_iam_role" "krish-synk-scan" {
-  name = "lambda_exec_role"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      },
-    ]
-  })
+provider "aws" {
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      ManagedBy = "Terraform"
+      Purpose   = "package-vulnerability-scan-assignment"
+    }
+  }
+}
+
+data "archive_file" "lambda" {
+  type        = "zip"
+  source_file = "${path.module}/helloworld.py"
+  output_path = "${path.module}/lambda.zip"
+}
+
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+
+    principals {
+      identifiers = ["lambda.amazonaws.com"]
+      type        = "Service"
+    }
+  }
+}
+
+resource "aws_iam_role" "lambda_exec" {
+  name               = "package-scan-lambda-execution-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_lambda_function" "helloworld" {
+  filename         = data.archive_file.lambda.output_path
+  function_name    = "package-scan-hello-world"
+  handler          = "helloworld.handler"
+  role             = aws_iam_role.lambda_exec.arn
+  runtime          = "python3.13"
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+
+  depends_on = [aws_iam_role_policy_attachment.lambda_basic_execution]
+}
+
+output "lambda_function_arn" {
+  value = aws_lambda_function.helloworld.arn
+}
+
+output "lambda_function_name" {
+  value = aws_lambda_function.helloworld.function_name
 }

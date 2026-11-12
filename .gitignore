@@ -1,6 +1,10 @@
 # Local .terraform directories
 .terraform/
 
+# Generated deployment artifacts
+lambda.zip
+*.tfplan
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
