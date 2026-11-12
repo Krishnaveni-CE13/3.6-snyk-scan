@@ -63,6 +63,11 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_xray_write" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
 resource "aws_lambda_function" "helloworld" {
   filename         = data.archive_file.lambda.output_path
   function_name    = "package-scan-hello-world"
@@ -71,7 +76,14 @@ resource "aws_lambda_function" "helloworld" {
   runtime          = "python3.13"
   source_code_hash = data.archive_file.lambda.output_base64sha256
 
-  depends_on = [aws_iam_role_policy_attachment.lambda_basic_execution]
+  tracing_config {
+    mode = "Active"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy_attachment.lambda_xray_write,
+  ]
 }
 
 output "lambda_function_arn" {
