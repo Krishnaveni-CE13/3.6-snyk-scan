@@ -1,6 +1,14 @@
 # Local .terraform directories
 .terraform/
 
+# Generated deployment artifacts
+lambda.zip
+*.tfplan
+
+# Python
+__pycache__/
+*.py[cod]
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
