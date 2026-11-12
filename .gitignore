@@ -5,6 +5,10 @@
 lambda.zip
 *.tfplan
 
+# Python
+__pycache__/
+*.py[cod]
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
